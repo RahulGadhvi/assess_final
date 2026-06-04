@@ -1,5 +1,4 @@
 import Sidebar from "@/components/layout/Sidebar";
-import LiveFeed from "@/components/layout/LiveFeed";
 
 export default function DashboardLayout({
   children,
@@ -9,12 +8,9 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
-      
-      <main className="flex-1 ml-[220px] mr-[300px] min-h-screen">
+      <main className="flex-1 ml-[220px] min-h-screen">
         {children}
       </main>
-
-      <LiveFeed />
     </div>
   );
 }

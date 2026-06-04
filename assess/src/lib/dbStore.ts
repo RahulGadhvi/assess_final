@@ -35,12 +35,16 @@ export interface HiringTask {
   workType: string;
   jdText: string;
   date: string;
+  candidatesCount: number;
+  completionRate: number;
+  status: string;
   aptitudeQuestions: Question[];
   domainQuestions: Question[];
   interviewQuestions: InterviewQuestion[];
   candidates: Candidate[];
 }
 
+// Global scope initialization prevents hot-reloads from wiping out your mock data
 const globalForStore = globalThis as unknown as {
   taskRegistry: HiringTask[] | undefined;
 };
@@ -49,11 +53,14 @@ if (!globalForStore.taskRegistry) {
   globalForStore.taskRegistry = [
     {
       id: "task-1",
-      title: "Senior Software Engineer",
+      title: "Senior Product Designer",
       location: "Bengaluru, India",
       workType: "Hybrid",
-      jdText: "Looking for a Senior Software Engineer proficient in React, Next.js, and TypeScript to architect accessible user interfaces and optimize frontend data flows.",
-      date: "2026-06-03",
+      jdText: "Design scalable design systems and manage cross-functional UI projects.",
+      date: "2026-06-01",
+      candidatesCount: 3,
+      completionRate: 68,
+      status: "Active",
       aptitudeQuestions: [],
       domainQuestions: [],
       interviewQuestions: [],
@@ -61,6 +68,24 @@ if (!globalForStore.taskRegistry) {
         { id: "c1", name: "Aisha Patel", aptScore: 85, domScore: 92, intScore: 88, overall: 88 },
         { id: "c2", name: "Rahul Singh", aptScore: 65, domScore: null, intScore: null, overall: 65 },
         { id: "c3", name: "Priya Sharma", aptScore: 35, domScore: 40, intScore: 45, overall: 40 },
+      ]
+    },
+    {
+      id: "task-2",
+      title: "Backend Engineer (Go)",
+      location: "Remote",
+      workType: "Full-time",
+      jdText: "Optimize concurrent database processing algorithms and build distributed pub/sub channels.",
+      date: "2026-05-28",
+      candidatesCount: 2,
+      completionRate: 45,
+      status: "Active",
+      aptitudeQuestions: [],
+      domainQuestions: [],
+      interviewQuestions: [],
+      candidates: [
+        { id: "c4", name: "Arjun Mehta", aptScore: 90, domScore: 88, intScore: 95, overall: 91 },
+        { id: "c5", name: "Kavita Rao", aptScore: 72, domScore: 70, intScore: 68, overall: 70 },
       ]
     }
   ];

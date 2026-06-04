@@ -30,7 +30,6 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSave} className="bg-surface border border-border rounded-xl p-6 space-y-6">
           
-          {/* Company Settings */}
           <div className="space-y-2">
             <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Company Name</label>
             <input
@@ -42,7 +41,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* OpenAI Configuration */}
           <div className="space-y-2">
             <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Custom OpenAI API Key (Optional)</label>
             <input
@@ -57,7 +55,6 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          {/* Compliance Configuration */}
           <div className="space-y-2">
             <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Data Retention Window (DPDP Act 2023)</label>
             <select
@@ -74,7 +71,6 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          {/* Submit Action */}
           <div className="pt-4 border-t border-border flex justify-end">
             <button
               type="submit"
@@ -86,7 +82,6 @@ export default function SettingsPage() {
           </div>
 
         </form>
-
       </div>
     </div>
   );

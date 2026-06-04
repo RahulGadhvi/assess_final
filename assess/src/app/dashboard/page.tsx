@@ -2,18 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Briefcase, Users, CheckCircle, Clock, ArrowRight, Settings } from "lucide-react";
+import { Plus, Briefcase, Users, CheckCircle, ArrowRight, Settings } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const mockActivities = [
-    { id: "a1", candidate: "Aisha Patel", event: "Completed Aptitude Test", score: "85%", time: "5m ago" },
-    { id: "a2", candidate: "Rahul Singh", event: "Started Domain Assessment", score: null, time: "22m ago" },
-    { id: "a3", candidate: "Priya Sharma", event: "Completed Technical Interview", score: "45%", time: "1h ago" },
-  ];
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -34,13 +28,12 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background text-text-primary p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         
-        {/* Navigation / Header */}
         <header className="flex items-center justify-between gap-4 border-b border-border pb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Hiring Dashboard</h1>
-            <p className="text-sm text-text-muted font-mono mt-0.5">Account: admin@assess.com</p>
+            <p className="text-sm text-text-muted font-mono mt-0.5">Account: Workspace Admin</p>
           </div>
           
           <div className="flex items-center gap-3">
@@ -60,7 +53,6 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Simplified Metrics Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { label: "Active Roles", value: isLoading ? "..." : tasks.length, icon: Briefcase },
@@ -77,66 +69,38 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        {/* Layout Split */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="space-y-4">
+          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider font-mono px-1">
+            Active Positions ({tasks.length})
+          </h2>
           
-          {/* Active Job Roles Column */}
-          <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider font-mono px-1">
-              Active Positions ({tasks.length})
-            </h2>
-            
-            <div className="space-y-3">
-              {isLoading ? (
-                <div className="h-24 w-full bg-surface border border-border rounded-xl animate-pulse" />
-              ) : (
-                tasks.map((task) => (
-                  <Link key={task.id} href={`/tasks/${task.id}`} className="block">
-                    <div className="bg-surface border border-border hover:border-text-muted rounded-xl p-5 transition-all flex items-center justify-between group">
-                      <div>
-                        <h3 className="font-medium text-text-primary text-base group-hover:text-accent transition-colors capitalize">
-                          {task.title}
-                        </h3>
-                        <p className="text-xs text-text-muted mt-1 font-mono">
-                          {task.location} · {task.workType}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs font-mono bg-black border border-border px-2 py-1 rounded text-text-muted uppercase">
-                          ID: {task.id}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
-                      </div>
+          <div className="space-y-3">
+            {isLoading ? (
+              <div className="h-24 w-full bg-surface border border-border rounded-xl animate-pulse" />
+            ) : (
+              tasks.map((task) => (
+                <Link key={task.id} href={`/tasks/${task.id}`} className="block">
+                  <div className="bg-surface border border-border hover:border-text-muted rounded-xl p-5 transition-all flex items-center justify-between group">
+                    <div>
+                      <h3 className="font-medium text-text-primary text-base group-hover:text-accent transition-colors capitalize">
+                        {task.title}
+                      </h3>
+                      <p className="text-xs text-text-muted mt-1 font-mono">
+                        {task.location} · {task.workType}
+                      </p>
                     </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Unified Live Activity Feed */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider font-mono px-1 flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5 text-accent" /> Live Activity Feed
-            </h2>
-            
-            <div className="bg-surface border border-border rounded-xl p-4 divide-y divide-border/40">
-              {mockActivities.map((act) => (
-                <div key={act.id} className="py-3 first:pt-0 last:pb-0 text-xs">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <span className="font-medium text-text-primary">{act.candidate}</span>
-                    <span className="text-[10px] font-mono text-text-muted">{act.time}</span>
+                    
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-mono bg-black border border-border px-3 py-1 rounded text-text-muted uppercase">
+                        ID: {task.id}
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
+                    </div>
                   </div>
-                  <p className="text-text-muted flex justify-between items-center">
-                    <span>{act.event}</span>
-                    {act.score && <span className="text-success font-mono font-bold">{act.score}</span>}
-                  </p>
-                </div>
-              ))}
-            </div>
+                </Link>
+              ))
+            )}
           </div>
-
         </div>
 
       </div>

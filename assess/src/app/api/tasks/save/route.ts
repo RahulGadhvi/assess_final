@@ -10,7 +10,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing core data parameters." }, { status: 400 });
     }
 
-    // Generate a unique relational routing ID
     const newTaskId = "task_" + Math.random().toString(36).substring(2, 7);
 
     const newTaskRecord = {
@@ -26,7 +25,6 @@ export async function POST(req: Request) {
       aptitudeQuestions: aptitudeQuestions || [],
       domainQuestions: domainQuestions || [],
       interviewQuestions: interviewContent || [],
-      // Seed standard mock pipeline applicants for realistic data display
       candidates: [
         { id: "rc1", name: "Ananya Iyer", aptScore: 82, domScore: 78, intScore: 85, overall: 81 },
         { id: "rc2", name: "Vikram Malhotra", aptScore: 45, domScore: null, intScore: null, overall: 45 },
@@ -34,7 +32,6 @@ export async function POST(req: Request) {
       ]
     };
 
-    // Prepend into the master application server database list
     taskRegistry.unshift(newTaskRecord);
     console.log(`[STORE_SYNC] Successfully saved "${title}" under cloud lookup ID: ${newTaskId}`);
 
