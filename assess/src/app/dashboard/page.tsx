@@ -56,11 +56,30 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("employer_company", companyName);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 1500);
+    
+    try {
+      // Hit the backend settings route to save to Supabase
+      const response = await fetch("/api/auth/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (response.ok) {
+        localStorage.setItem("employer_company", companyName);
+        setIsSaved(true);
+        setTimeout(() => {
+          setIsSaved(false);
+          window.location.reload(); // Refresh display strings across layouts
+        }, 1000);
+      } else {
+        alert("Failed to save company name changes onto database cluster.");
+      }
+    } catch (err) {
+      console.error("Error saving settings to DB:", err);
+    }
   };
 
   const handleLogout = () => {
