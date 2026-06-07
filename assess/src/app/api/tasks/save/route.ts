@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { taskRegistry } from "@/lib/dbStore";
 
 export async function POST(req: Request) {
@@ -10,10 +11,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing core data parameters." }, { status: 400 });
     }
 
-    const newTaskId = "task_" + Math.random().toString(36).substring(2, 7);
+    const uniqueTaskId = "task_" + Math.random().toString(36).substring(2, 7);
 
-    const newTaskRecord = {
-      id: newTaskId,
+    const formattedRecord = {
+      id: uniqueTaskId,
       title,
       location,
       workType,
@@ -32,13 +33,74 @@ export async function POST(req: Request) {
       ]
     };
 
-    taskRegistry.unshift(newTaskRecord);
-    console.log(`[STORE_SYNC] Successfully saved "${title}" under cloud lookup ID: ${newTaskId}`);
+    // 1. Live Production Deployment Database Persistence Channel
+    if (process.env.DATABASE_URL) {
+      try {
+        const dbClient = prisma as any;
+        
+        const createdTask = await dbClient.hiringTask.create({
+          data: {
+            title,
+            location,
+            workType,
+            jdText,
+            status: "Active",
+            candidatesCount: 3,
+            completionRate: 0,
+            // Create related questions and configurations structurally matching your schema definitions
+            aptitudeQuestions: {
+              create: (aptitudeQuestions || []).map((q: any) => ({
+                section: q.section || "General Reasoning",
+                text: q.text,
+                options: {
+                  create: (q.options || []).map((o: any) => ({
+                    text: o.text,
+                    isCorrect: o.isCorrect || false
+                  }))
+                }
+              }))
+            },
+            domainQuestions: {
+              create: (domainQuestions || []).map((q: any) => ({
+                section: q.section || "Domain Knowledge",
+                text: q.text,
+                options: {
+                  create: (q.options || []).map((o: any) => ({
+                    text: o.text,
+                    isCorrect: o.isCorrect || false
+                  }))
+                }
+              }))
+            },
+            interviewQuestions: {
+              create: (interviewContent || []).map((i: any) => ({
+                competency: i.competency,
+                question: i.question,
+                followUpProbe: i.followUpProbe,
+                signalToLookFor: i.signalToLookFor
+              }))
+            },
+            candidates: {
+              create: formattedRecord.candidates.map(({ id, ...c }) => c)
+            }
+          }
+        });
 
-    return NextResponse.json({ success: true, taskId: newTaskId });
+        console.log(`[PRISMA_SYNC] Target configuration written onto Postgres slot: ${createdTask.id}`);
+        return NextResponse.json({ success: true, taskId: createdTask.id });
+      } catch (dbError: any) {
+        console.error(`[DATABASE_SYNC_FAILURE] Core fallback triggered: ${dbError.message}`);
+      }
+    }
+
+    // 2. Performance Local Sandbox Fallback Mode array registry injection
+    taskRegistry.unshift(formattedRecord);
+    console.log(`[STORE_SYNC] Saved locally inside RAM sandbox index slot lookup ID: ${uniqueTaskId}`);
+
+    return NextResponse.json({ success: true, taskId: uniqueTaskId });
 
   } catch (error: any) {
-    console.error(`[SAVE_ROUTE_CRASH] - ${error.message}`);
-    return NextResponse.json({ error: "Internal processing crash." }, { status: 500 });
+    console.error(`[SAVE_ROUTE_CRITICAL_FAILURE] - ${error.message}`);
+    return NextResponse.json({ error: "Internal processing tracking subsystem failure." }, { status: 500 });
   }
 }

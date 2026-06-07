@@ -1,56 +1,85 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { LayoutDashboard, Settings, LogOut } from "lucide-react";
 
-export default function Sidebar() {
-  const pathname = usePathname();
+interface SidebarProps {
+  activeTab?: "tasks" | "settings";
+  setActiveTab?: (tab: "tasks" | "settings") => void;
+}
 
-  const navItems = [
-    { name: "Hiring Tasks", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Settings", href: "/settings", icon: Settings },
-  ];
+export default function Sidebar({ activeTab = "tasks", setActiveTab }: SidebarProps) {
+  const router = useRouter();
+  const [companyName, setCompanyName] = useState("Assess Workspace");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedCompany = localStorage.getItem("employer_company");
+      if (storedCompany) setCompanyName(storedCompany);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("employer_company");
+    router.push("/");
+  };
+
+  const navigateToTab = (tab: "tasks" | "settings") => {
+    if (setActiveTab) {
+      setActiveTab(tab);
+      // Ensure user lands safely on core workspace grid canvas
+      router.push("/dashboard");
+    }
+  };
 
   return (
     <aside className="w-[220px] h-screen fixed left-0 top-0 bg-[#0A0A0A] border-r border-border flex flex-col z-20">
       <div className="h-16 flex items-center px-6 border-b border-border">
         <span className="font-mono font-bold text-xl tracking-tighter text-text-primary">
-          Assess.
+          assess.
         </span>
       </div>
 
       <nav className="flex-1 py-6 flex flex-col gap-1 px-3">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? "bg-surface border-l-2 border-accent text-text-primary"
-                  : "text-text-muted hover:text-text-primary hover:bg-surface/50 border-l-2 border-transparent"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {item.name}
-            </Link>
-          );
-        })}
+        <button
+          onClick={() => navigateToTab("tasks")}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+            activeTab === "tasks"
+              ? "bg-surface border-l-2 border-accent text-text-primary"
+              : "text-text-muted hover:text-text-primary hover:bg-surface/50 border-l-2 border-transparent"
+          }`}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Hiring Tasks
+        </button>
+
+        <button
+          onClick={() => navigateToTab("settings")}
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+            activeTab === "settings"
+              ? "bg-surface border-l-2 border-accent text-text-primary"
+              : "text-text-muted hover:text-text-primary hover:bg-surface/50 border-l-2 border-transparent"
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          Settings
+        </button>
       </nav>
 
       <div className="p-4 border-t border-border flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center flex-shrink-0">
-          <span className="text-xs font-semibold text-text-primary">RG</span>
+        <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold">
+          RG
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-text-primary truncate">Rahul Gadhvi</p>
-          <p className="text-xs text-text-muted truncate">ACME Corp</p>
+          <p className="text-xs text-text-muted truncate font-mono uppercase tracking-tight">{companyName}</p>
         </div>
-        <button className="text-text-muted hover:text-text-primary transition-colors p-1">
+        <button 
+          onClick={handleLogout}
+          title="Sign Out"
+          className="text-text-muted hover:text-destructive transition-colors p-1"
+        >
           <LogOut className="w-4 h-4" />
         </button>
       </div>

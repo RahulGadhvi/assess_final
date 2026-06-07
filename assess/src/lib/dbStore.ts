@@ -1,3 +1,5 @@
+import { prisma } from "./prisma";
+
 export interface Option {
   id: string;
   text: string;
@@ -44,7 +46,6 @@ export interface HiringTask {
   candidates: Candidate[];
 }
 
-// Global scope initialization prevents hot-reloads from wiping out your mock data
 const globalForStore = globalThis as unknown as {
   taskRegistry: HiringTask[] | undefined;
 };
@@ -92,3 +93,81 @@ if (!globalForStore.taskRegistry) {
 }
 
 export const taskRegistry = globalForStore.taskRegistry;
+
+/**
+ * Data Access Layer helper engines to abstract in-memory state scaling 
+ * cleanly away into production Prisma pools dynamically.
+ */
+export async function getAllHiringTasks(employerId?: string): Promise<HiringTask[]> {
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbClient = prisma as any;
+      const tasks = await dbClient.hiringTask.findMany({
+        where: employerId ? { employerId } : {},
+        include: {
+          aptitudeQuestions: { include: { options: true } },
+          domainQuestions: { include: { options: true } },
+          interviewQuestions: true,
+          candidates: true,
+        },
+        orderBy: { date: "desc" },
+      });
+
+      return tasks.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        location: t.location,
+        workType: t.workType,
+        jdText: t.jdText,
+        date: t.date.toISOString().split("T")[0],
+        candidatesCount: t.candidatesCount,
+        completionRate: t.completionRate,
+        status: t.status,
+        aptitudeQuestions: t.aptitudeQuestions || [],
+        domainQuestions: t.domainQuestions || [],
+        interviewQuestions: t.interviewQuestions || [],
+        candidates: t.candidates || [],
+      }));
+    } catch (e) {
+      console.error("[DB_STORE_DAL_ERROR] Falling back to memory registry initialization loop", e);
+    }
+  }
+  return taskRegistry;
+}
+
+export async function findHiringTaskById(id: string): Promise<HiringTask | null> {
+  if (process.env.DATABASE_URL && !id.startsWith("demo-") && !id.startsWith("task-")) {
+    try {
+      const dbClient = prisma as any;
+      const t = await dbClient.hiringTask.findUnique({
+        where: { id },
+        include: {
+          aptitudeQuestions: { include: { options: true } },
+          domainQuestions: { include: { options: true } },
+          interviewQuestions: true,
+          candidates: true,
+        },
+      });
+      if (t) {
+        return {
+          id: t.id,
+          title: t.title,
+          location: t.location,
+          workType: t.workType,
+          jdText: t.jdText,
+          date: t.date.toISOString().split("T")[0],
+          candidatesCount: t.candidatesCount,
+          completionRate: t.completionRate,
+          status: t.status,
+          aptitudeQuestions: t.aptitudeQuestions || [],
+          domainQuestions: t.domainQuestions || [],
+          interviewQuestions: t.interviewQuestions || [],
+          candidates: t.candidates || [],
+        };
+      }
+    } catch (e) {
+      console.error(`[DB_STORE_FIND_ERROR] Verification fallback on trace id: ${id}`, e);
+    }
+  }
+  return taskRegistry.find((t) => t.id === id) || null;
+}

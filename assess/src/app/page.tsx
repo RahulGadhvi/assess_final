@@ -1,101 +1,195 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Loader2, Eye, EyeOff, AlertCircle, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const router = useRouter();
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setIsLoading(true);
+
+    const targetEndpoint = isRegistering ? "/api/auth/register" : "/api/auth/login";
+    const payload = isRegistering ? { email, password, companyName } : { email, password };
+
+    try {
+      const res = await fetch(targetEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+
+      if (isRegistering) {
+        setIsRegistering(false);
+        setErrorMessage("Account created successfully! Please sign in below.");
+      } else {
+        // Cache organization identifier parameters for live layout syncing
+        localStorage.setItem("employer_company", data.company || "Assess Workspace");
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTriggerDemoMode = async () => {
+    setErrorMessage(null);
+    setIsDemoLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDemoMode: true }),
+      });
+      
+      if (res.ok) {
+        localStorage.setItem("employer_company", "Demo Sandbox Corp");
+        router.push("/dashboard");
+      } else {
+        throw new Error("Demo workspace environment failed to load.");
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setIsDemoLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen w-full flex items-center justify-center bg-background px-4 relative selection:bg-accent/30 selection:text-text-primary">
+      {/* Background radial layer highlight */}
+      <div className="absolute top-0 inset-x-0 h-64 bg-[radial-gradient(circle_at_top,rgba(94,106,210,0.05)_0%,transparent_75%)] pointer-events-none" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-[420px] bg-surface border border-border rounded-xl p-8 shadow-2xl z-10"
+      >
+        <div className="mb-6 text-center">
+          <h1 className="font-mono font-bold text-3xl text-text-primary tracking-tight mb-1">assess.</h1>
+          <p className="text-text-muted text-sm font-sans">
+            {isRegistering ? "Create your organization workspace" : "Sign in to your hiring command center"}
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <AnimatePresence mode="wait">
+          {errorMessage && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className={`p-3 rounded-lg border text-xs flex items-center gap-2 mb-4 font-mono ${
+                errorMessage.includes("successfully")
+                  ? "bg-success/10 border-success/30 text-success"
+                  : "bg-destructive/10 border-destructive/30 text-destructive"
+              }`}
+            >
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <form onSubmit={handleFormSubmit} className="space-y-4">
+          {isRegistering && (
+            <div>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                required
+                placeholder="Company Name"
+                className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none transition-colors focus:border-accent font-sans"
+              />
+            </div>
+          )}
+
+          <div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="Email address"
+              className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none transition-colors focus:border-accent font-sans"
+            />
+          </div>
+
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Password"
+              className="w-full h-11 bg-black border border-border rounded-lg px-4 pr-10 text-text-primary text-sm outline-none transition-colors focus:border-accent font-sans"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-1 transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            type="submit"
+            disabled={isLoading || isDemoLoading}
+            className="w-full h-11 bg-text-primary hover:bg-white text-black font-medium rounded-lg text-sm transition-colors flex items-center justify-center disabled:opacity-50 font-sans"
+          >
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : isRegistering ? "Register Workspace" : "Sign In"}
+          </motion.button>
+        </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+          <div className="relative flex justify-center text-xs uppercase"><span className="bg-surface px-3 text-text-muted font-mono">Or Presentation Box</span></div>
+        </div>
+
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          type="button"
+          onClick={handleTriggerDemoMode}
+          disabled={isLoading || isDemoLoading}
+          className="w-full h-11 bg-accent/10 border border-accent/20 hover:bg-accent/20 text-accent font-medium rounded-lg text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-accent-glow font-sans"
         >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          {isDemoLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          <span>Explore Live Demo Mode</span>
+        </motion.button>
+
+        <div className="mt-6 text-center text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              setErrorMessage(null);
+            }}
+            className="text-text-muted hover:text-text-primary transition-colors underline font-sans"
+          >
+            {isRegistering ? "Already have an account? Sign in" : "Need multi-user tracking? Register your company"}
+          </button>
+        </div>
+      </motion.div>
+    </main>
   );
 }

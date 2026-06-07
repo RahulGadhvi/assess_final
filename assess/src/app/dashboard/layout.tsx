@@ -1,4 +1,6 @@
-import Sidebar from "@/components/layout/Sidebar";
+"use client";
+
+import React from "react";
 
 export default function DashboardLayout({
   children,
@@ -7,10 +9,10 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-background flex">
-      <Sidebar />
-      <main className="flex-1 ml-[220px] min-h-screen">
+      {/* Container wrapper pass-through */}
+      <div className="flex-1 min-h-screen">
         {children}
-      </main>
+      </div>
     </div>
   );
 }
