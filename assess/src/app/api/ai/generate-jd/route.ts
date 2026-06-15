@@ -4,10 +4,14 @@ import OpenAI from "openai";
 const apiKey = process.env.OPENAI_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "An unexpected error occurred.";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { prompt } = body;
+    const body = (await req.json()) as Record<string, unknown>;
+    const prompt = typeof body.prompt === "string" ? body.prompt : "";
 
     if (!prompt) {
       return NextResponse.json({ error: "Please enter a role prompt (e.g. Sales Executive with 1 year experience)" }, { status: 400 });
@@ -15,7 +19,6 @@ export async function POST(req: Request) {
 
     console.log(`[JD_GENERATOR] Synthesizing standardized schema template for prompt: "${prompt}"`);
 
-    // Graceful presentation fallback if API keys are missing or credentials fail
     if (!openai || apiKey?.includes("your-actual-api-key")) {
       console.warn("[JD_GENERATOR] No OpenAI API Key found. Routing workspace to instant local fallback template.");
       return NextResponse.json({ jd: getFallbackJD(prompt) });
@@ -74,22 +77,19 @@ export async function POST(req: Request) {
       if (!generatedText) throw new Error("Empty payload returned from OpenAI channel.");
 
       return NextResponse.json({ jd: generatedText });
-
-    } catch (apiError: any) {
-      console.error(`[JD_GENERATOR_API_EXCEPTION] Direct API error: ${apiError.message}. Routing safely to fallback.`);
+    } catch (apiError) {
+      console.error(`[JD_GENERATOR_API_EXCEPTION] Direct API error: ${getErrorMessage(apiError)}. Routing safely to fallback.`);
       return NextResponse.json({ jd: getFallbackJD(prompt) });
     }
-
-  } catch (error: any) {
-    console.error(`[JD_GENERATOR_CRITICAL_FAILURE] ${error.message}`);
+  } catch (error) {
+    console.error(`[JD_GENERATOR_CRITICAL_FAILURE] ${getErrorMessage(error)}`);
     return NextResponse.json({ error: "Failed to generate structured JD template." }, { status: 500 });
   }
 }
 
-// Fallback template builder matching the exact schema checklist parameters
 function getFallbackJD(prompt: string): string {
   const cleanPrompt = prompt.toLowerCase();
-  
+
   if (cleanPrompt.includes("sales") || cleanPrompt.includes("executive")) {
     return `JOB TITLE: Sales Executive
 EXPERIENCE REQUIRED: 1-2 years in B2B/SaaS or direct sales

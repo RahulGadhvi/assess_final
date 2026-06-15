@@ -3,9 +3,8 @@ import { getAllHiringTasks } from "@/lib/dbStore";
 
 export async function GET() {
   try {
-    // Queries the live persistent layer if matching configuration parameters exist
     const tasks = await getAllHiringTasks();
-    
+
     return NextResponse.json(
       { success: true, tasks },
       {
@@ -14,8 +13,9 @@ export async function GET() {
         },
       }
     );
-  } catch (error: any) {
-    console.error(`[API_TASKS_LIST_CRITICAL] ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[API_TASKS_LIST_CRITICAL] ${message}`);
     return NextResponse.json(
       { error: "Failed to pull position logs from core telemetry stack." },
       { status: 500 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Loader2, Sparkles, Building2, MapPin, AlertCircle, Wand2, Terminal, Cpu } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Building2, MapPin, Wand2, Terminal, Cpu } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -22,7 +21,7 @@ export default function CreateTaskPage() {
   const [isJdGenerating, setIsJdGenerating] = useState(false);
 
   // Overall Generation Pipeline State
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [generatedTaskId, setGeneratedTaskId] = useState<string | null>(null);
   const [genPhase, setGenPhase] = useState(0); // -1 = error, 0 = aptitude, 1 = domain, 2 = interview, 3 = sync, 4 = done
   const [logs, setLogs] = useState<string[]>([]);
@@ -142,9 +141,10 @@ export default function CreateTaskPage() {
           setGeneratedTaskId(dbData.taskId);
           
           setGenPhase(4);
-        } catch (err: any) {
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "An error occurred during assessment compilation.";
           console.error(err);
-          setError(err.message || "An error occurred during assessment compilation.");
+          setError(message);
           setGenPhase(-1);
         }
       };
@@ -175,8 +175,8 @@ export default function CreateTaskPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate job template.");
       setJd(data.jd);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate job template.");
     } finally {
       setIsJdGenerating(false);
     }

@@ -43,8 +43,8 @@ export default function Home() {
         localStorage.setItem("employer_company", data.company || "Assess Workspace");
         router.push("/dashboard");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setIsLoading(false);
     }
@@ -67,8 +67,8 @@ export default function Home() {
       } else {
         throw new Error("Demo workspace environment failed to load.");
       }
-    } catch (err: any) {
-      setErrorMessage(err.message);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Demo workspace environment failed to load.");
       setIsDemoLoading(false);
     }
   };

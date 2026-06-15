@@ -2,17 +2,21 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { taskRegistry } from "@/lib/dbStore";
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "An unexpected error occurred.";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { email, password, isDemoMode } = body;
+    const body = (await req.json()) as Record<string, unknown>;
+    const email = typeof body.email === "string" ? body.email : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const isDemoMode = body.isDemoMode === true;
 
-    // 1. Handle Instant Presentation Demo Workspace Entry
     if (isDemoMode || email === "demo@assess.com") {
       console.log("[AUTH_HUB] Initializing isolated, high-speed presentation workspace.");
-      
-      // Reset memory store with realistic demo data to guarantee a flawless client view
-      taskRegistry.length = 0; 
+
+      taskRegistry.length = 0;
       taskRegistry.push(
         {
           id: "demo-task-1",
@@ -20,7 +24,7 @@ export async function POST(req: Request) {
           location: "Mumbai, India",
           workType: "Full-time",
           jdText: "Looking for an energetic Sales Executive with 1+ years of experience to manage corporate clients and close enterprise deals.",
-          date: new Date().toISOString().split('T')[0],
+          date: new Date().toISOString().split("T")[0],
           candidatesCount: 3,
           completionRate: 88,
           status: "Active",
@@ -55,27 +59,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, user: "demo@assess.com", role: "Demo Sandbox" });
     }
 
-    // 2. Live Cloud Database Authentication Validation Loop
     if (!email || !password) {
       return NextResponse.json({ error: "Please enter your email and password." }, { status: 400 });
     }
 
-    // Cast to any to bypass stale generated client type definitions
-    const dbClient = prisma as any;
-    const matchedEmployer = await dbClient.employer.findFirst({ where: { email } });
-    
+    const matchedEmployer = await prisma.employer.findFirst({ where: { email } });
+
     if (!matchedEmployer || matchedEmployer.passwordHash !== password) {
       return NextResponse.json({ error: "Invalid email or password combination." }, { status: 401 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      user: matchedEmployer.email, 
-      company: matchedEmployer.companyName 
+    return NextResponse.json({
+      success: true,
+      user: matchedEmployer.email,
+      company: matchedEmployer.companyName
     });
-
-  } catch (error: any) {
+  } catch (error) {
     console.error("[AUTH_HUB_CRASH]", error);
-    return NextResponse.json({ error: "Authentication system is currently offline." }, { status: 500 });
+    return NextResponse.json({ error: "Authentication system is currently offline.", details: getErrorMessage(error) }, { status: 500 });
   }
 }

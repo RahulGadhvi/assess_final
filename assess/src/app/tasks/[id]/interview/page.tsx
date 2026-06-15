@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { ArrowLeft, Check, MessageSquare, ShieldAlert, Star, Sparkles, Loader2, User } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -41,7 +41,7 @@ export default function InterviewScriptPage() {
           setRoleTitle(data.task.title);
           
           if (candidateId && data.task.candidates) {
-            const currentCandidate = data.task.candidates.find((c: any) => c.id === candidateId);
+            const currentCandidate = data.task.candidates.find((c: { id: string; name: string }) => c.id === candidateId);
             if (currentCandidate) setCandidateName(currentCandidate.name);
           }
 

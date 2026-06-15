@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export interface Option {
@@ -45,6 +46,74 @@ export interface HiringTask {
   interviewQuestions: InterviewQuestion[];
   candidates: Candidate[];
 }
+
+type HiringTaskWithRelations = Prisma.HiringTaskGetPayload<{
+  include: {
+    aptitudeQuestions: { include: { options: true } };
+    domainQuestions: { include: { options: true } };
+    interviewQuestions: true;
+    candidates: true;
+  };
+}>;
+
+const formatDate = (value: Date | string | null | undefined): string => {
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0];
+  }
+
+  if (typeof value === "string") {
+    return new Date(value).toISOString().split("T")[0];
+  }
+
+  return new Date().toISOString().split("T")[0];
+};
+
+const mapTask = (task: HiringTaskWithRelations): HiringTask => ({
+  id: task.id,
+  title: task.title,
+  location: task.location,
+  workType: task.workType,
+  jdText: task.jdText,
+  date: formatDate(task.date),
+  candidatesCount: task.candidatesCount,
+  completionRate: task.completionRate,
+  status: task.status,
+  aptitudeQuestions: (task.aptitudeQuestions ?? []).map((question) => ({
+    id: question.id,
+    section: question.section,
+    text: question.text,
+    options: (question.options ?? []).map((option) => ({
+      id: option.id,
+      text: option.text,
+      isCorrect: option.isCorrect,
+    })),
+  })),
+  domainQuestions: (task.domainQuestions ?? []).map((question) => ({
+    id: question.id,
+    section: question.section,
+    text: question.text,
+    options: (question.options ?? []).map((option) => ({
+      id: option.id,
+      text: option.text,
+      isCorrect: option.isCorrect,
+    })),
+  })),
+  interviewQuestions: (task.interviewQuestions ?? []).map((question) => ({
+    id: question.id,
+    competency: question.competency,
+    question: question.question,
+    followUpProbe: question.followUpProbe,
+    signalToLookFor: question.signalToLookFor,
+  })),
+  candidates: (task.candidates ?? []).map((candidate) => ({
+    id: candidate.id,
+    name: candidate.name,
+    aptScore: candidate.aptScore,
+    domScore: candidate.domScore,
+    intScore: candidate.intScore,
+    overall: candidate.overall,
+  })),
+});
 
 const globalForStore = globalThis as unknown as {
   taskRegistry: HiringTask[] | undefined;
@@ -95,14 +164,13 @@ if (!globalForStore.taskRegistry) {
 export const taskRegistry = globalForStore.taskRegistry;
 
 /**
- * Data Access Layer helper engines to abstract in-memory state scaling 
+ * Data Access Layer helper engines to abstract in-memory state scaling
  * cleanly away into production Prisma pools dynamically.
  */
 export async function getAllHiringTasks(employerId?: string): Promise<HiringTask[]> {
   if (process.env.DATABASE_URL) {
     try {
-      const dbClient = prisma as any;
-      const tasks = await dbClient.hiringTask.findMany({
+      const tasks = await prisma.hiringTask.findMany({
         where: employerId ? { employerId } : {},
         include: {
           aptitudeQuestions: { include: { options: true } },
@@ -113,23 +181,9 @@ export async function getAllHiringTasks(employerId?: string): Promise<HiringTask
         orderBy: { date: "desc" },
       });
 
-      return tasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        location: t.location,
-        workType: t.workType,
-        jdText: t.jdText,
-        date: t.date.toISOString().split("T")[0],
-        candidatesCount: t.candidatesCount,
-        completionRate: t.completionRate,
-        status: t.status,
-        aptitudeQuestions: t.aptitudeQuestions || [],
-        domainQuestions: t.domainQuestions || [],
-        interviewQuestions: t.interviewQuestions || [],
-        candidates: t.candidates || [],
-      }));
-    } catch (e) {
-      console.error("[DB_STORE_DAL_ERROR] Falling back to memory registry initialization loop", e);
+      return tasks.map(mapTask);
+    } catch (error) {
+      console.error("[DB_STORE_DAL_ERROR] Falling back to memory registry initialization loop", error);
     }
   }
   return taskRegistry;
@@ -138,8 +192,7 @@ export async function getAllHiringTasks(employerId?: string): Promise<HiringTask
 export async function findHiringTaskById(id: string): Promise<HiringTask | null> {
   if (process.env.DATABASE_URL && !id.startsWith("demo-") && !id.startsWith("task-")) {
     try {
-      const dbClient = prisma as any;
-      const t = await dbClient.hiringTask.findUnique({
+      const task = await prisma.hiringTask.findUnique({
         where: { id },
         include: {
           aptitudeQuestions: { include: { options: true } },
@@ -148,26 +201,12 @@ export async function findHiringTaskById(id: string): Promise<HiringTask | null>
           candidates: true,
         },
       });
-      if (t) {
-        return {
-          id: t.id,
-          title: t.title,
-          location: t.location,
-          workType: t.workType,
-          jdText: t.jdText,
-          date: t.date.toISOString().split("T")[0],
-          candidatesCount: t.candidatesCount,
-          completionRate: t.completionRate,
-          status: t.status,
-          aptitudeQuestions: t.aptitudeQuestions || [],
-          domainQuestions: t.domainQuestions || [],
-          interviewQuestions: t.interviewQuestions || [],
-          candidates: t.candidates || [],
-        };
+      if (task) {
+        return mapTask(task);
       }
-    } catch (e) {
-      console.error(`[DB_STORE_FIND_ERROR] Verification fallback on trace id: ${id}`, e);
+    } catch (error) {
+      console.error(`[DB_STORE_FIND_ERROR] Verification fallback on trace id: ${id}`, error);
     }
   }
-  return taskRegistry.find((t) => t.id === id) || null;
+  return taskRegistry.find((task) => task.id === id) || null;
 }

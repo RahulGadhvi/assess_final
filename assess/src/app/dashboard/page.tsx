@@ -6,12 +6,21 @@ import { Plus, Briefcase, Users, CheckCircle, ArrowRight, Trash2, Save, Check, L
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+interface TaskSummary {
+  id: string;
+  title: string;
+  location: string;
+  workType: string;
+  candidates?: Array<{ id: string }>;
+  completionRate?: number;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   
   // Single Source of Truth for view tabs
   const [activeTab, setActiveTab] = useState<"tasks" | "settings">("tasks");
-  const [tasks, setTasks] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Organization States
@@ -168,7 +177,7 @@ export default function DashboardPage() {
                 {[
                   { label: "Active Roles", value: isLoading ? "..." : tasks.length, icon: Briefcase },
                   { label: "Total Candidates", value: isLoading ? "..." : tasks.reduce((acc, t) => acc + (t.candidates?.length || 0), 0), icon: Users },
-                  { label: "Assessments Finished", value: isLoading ? "..." : tasks.reduce((acc, t) => acc + (t.completionRate > 0 ? 1 : 0), 0), icon: CheckCircle },
+                  { label: "Assessments Finished", value: isLoading ? "..." : tasks.reduce((acc, t) => acc + ((t.completionRate ?? 0) > 0 ? 1 : 0), 0), icon: CheckCircle },
                 ].map((stat, i) => (
                   <div key={i} className="bg-surface border border-border rounded-xl p-5 flex items-center justify-between">
                     <div>

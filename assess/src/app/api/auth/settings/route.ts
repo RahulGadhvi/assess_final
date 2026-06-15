@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "An unexpected error occurred.";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { companyName, email } = body;
+    const body = (await req.json()) as Record<string, unknown>;
+    const companyName = typeof body.companyName === "string" ? body.companyName : "";
+    const email = typeof body.email === "string" ? body.email : "";
 
     if (!companyName) {
       return NextResponse.json({ error: "Company name is required." }, { status: 400 });
     }
 
-    // If a database is configured, save the change permanently
     if (process.env.DATABASE_URL) {
-      const dbClient = prisma as any;
-      
-      // Look up the employer profile to update their company profile string
-      await dbClient.employer.updateMany({
-        where: email ? { email } : {}, // Safe fallbacks if explicit session tokens aren't active yet
+      await prisma.employer.updateMany({
+        where: email ? { email } : {},
         data: { companyName }
       });
 
@@ -24,8 +25,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, company: companyName });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[SETTINGS_ROUTE_ERROR]", error);
-    return NextResponse.json({ error: "Failed to update profile settings in database." }, { status: 500 });
+    return NextResponse.json({ error: "Failed to update profile settings in database.", details: getErrorMessage(error) }, { status: 500 });
   }
 }

@@ -1,23 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { ArrowLeft, Copy, Check, Trophy, List, Users, Loader2, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Copy, Check, Users, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+interface CandidateRecord {
+  id: string;
+  name: string;
+  aptScore: number | null;
+  domScore: number | null;
+  intScore: number | null;
+  overall: number | null;
+}
+
+interface TaskDetail {
+  id: string;
+  title: string;
+  location: string;
+  workType: string;
+  candidates?: CandidateRecord[];
+}
+
 export default function TaskDetailPage() {
   const params = useParams();
-  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [, setCopiedLink] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingScore, setEditingScore] = useState<{ id: string, field: string } | null>(null);
   
-  const [task, setTask] = useState<any>(null);
-  const [candidates, setCandidates] = useState<any[]>([]);
+  const [task, setTask] = useState<TaskDetail | null>(null);
+  const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const loadTaskDetails = async () => {
+  const loadTaskDetails = useCallback(async () => {
     try {
       const response = await fetch(`/api/tasks/${params.id}`);
       if (response.ok) {
@@ -31,11 +47,11 @@ export default function TaskDetailPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [params.id]);
 
   useEffect(() => {
     loadTaskDetails();
-  }, [params.id]);
+  }, [loadTaskDetails]);
 
   const handleSyncRefresh = () => {
     setIsRefreshing(true);
@@ -51,7 +67,7 @@ export default function TaskDetailPage() {
     setCopiedLink(type);
     const domain = typeof window !== "undefined" ? window.location.origin : "";
     const computedLink = `${domain}/test/${params.id}_${type}`;
-    navigator.clipboard.writeText(computedLink);
+    void navigator.clipboard.writeText(computedLink);
     triggerToast(`Copied ${type} test link to clipboard.`);
     setTimeout(() => setCopiedLink(null), 2000);
   };
@@ -63,7 +79,7 @@ export default function TaskDetailPage() {
       return;
     }
 
-    const updatedCandidates = candidates.map(c => {
+    const updatedCandidates = candidates.map((c) => {
       if (c.id === candidateId) {
         const nextState = { ...c, [field]: numValue };
         const scores = [nextState.aptScore, nextState.domScore, nextState.intScore].filter(s => s !== null) as number[];
@@ -130,7 +146,7 @@ export default function TaskDetailPage() {
     );
   };
 
-  if (isLoading) {
+  if (isLoading || !task) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center font-mono text-text-muted text-xs gap-3 animate-pulse">
         <Loader2 className="w-4 h-4 animate-spin text-accent" />

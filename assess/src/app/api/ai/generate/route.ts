@@ -1,20 +1,24 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-// Initialize OpenAI client safely
 const apiKey = process.env.OPENAI_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "An unexpected error occurred.";
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { jd, type, roleTitle } = body;
+    const body = (await req.json()) as Record<string, unknown>;
+    const jd = typeof body.jd === "string" ? body.jd : "";
+    const type = typeof body.type === "string" ? body.type : "";
+    const roleTitle = typeof body.roleTitle === "string" ? body.roleTitle : undefined;
 
     if (!jd || !type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Capture logs directly in your development terminal window
     console.log(`[AI_ROUTE] Initiating generation phase for type: ${type}`);
 
     if (!openai || apiKey?.includes("your-actual-api-key")) {
@@ -42,13 +46,13 @@ export async function POST(req: Request) {
         response_format: { type: "json_object" },
         temperature: 0.7,
         messages: [
-          { 
-            role: "system", 
-            content: `${systemPrompt}\n\n${expectedStructure}\n\nRespond only in valid JSON, no markdown fences, no preamble.` 
+          {
+            role: "system",
+            content: `${systemPrompt}\n\n${expectedStructure}\n\nRespond only in valid JSON, no markdown fences, no preamble.`
           },
-          { 
-            role: "user", 
-            content: `Job Description:\n\n${jd}` 
+          {
+            role: "user",
+            content: `Job Description:\n\n${jd}`
           }
         ],
       });
@@ -57,23 +61,18 @@ export async function POST(req: Request) {
       if (!responseContent) throw new Error("Empty payload returned from OpenAI network node.");
 
       return NextResponse.json(JSON.parse(responseContent));
-
-    } catch (apiError: any) {
-      console.error(`[OPENAI_LIVE_EXCEPTION] Direct API error: ${apiError.message}. Safely routing workspace to fallback asset engine.`);
+    } catch (apiError) {
+      console.error(`[OPENAI_LIVE_EXCEPTION] Direct API error: ${getErrorMessage(apiError)}. Safely routing workspace to fallback asset engine.`);
       return NextResponse.json(getFallbackData(type, roleTitle));
     }
-
-  } catch (error: any) {
-    console.error(`[AI_GENERATE_CRITICAL_ERROR] - ${error.message}`);
-    return NextResponse.json(
-      { error: "Failed to generate artifact", details: error.message }, 
-      { status: 500 }
-    );
+  } catch (error) {
+    const message = getErrorMessage(error);
+    console.error(`[AI_GENERATE_CRITICAL_ERROR] - ${message}`);
+    return NextResponse.json({ error: "Failed to generate artifact", details: message }, { status: 500 });
   }
 }
 
-// Resilient Fallback Engine to guarantee seamless end-to-end sandbox walkthroughs
-function getFallbackData(type: string, roleTitle: string) {
+function getFallbackData(type: string, roleTitle?: string) {
   if (type === "interview") {
     return {
       questions: [
@@ -81,13 +80,13 @@ function getFallbackData(type: string, roleTitle: string) {
       ]
     };
   }
-  
+
   return {
     questions: [
       {
         id: "q1",
         section: type === "aptitude" ? "General Reasoning" : "Domain Execution",
-        text: type === "aptitude" 
+        text: type === "aptitude"
           ? "A delivery platform scales active operations across 5 metropolitan clusters in India. If traffic scales quadratically relative to grid density, how many clusters are active when capacity utilization increases 400%?"
           : `In a production setup built for ${roleTitle || "Frontend Tasks"}, which optimization strategy reduces hydration bottlenecks on slow mobile networks in sub-optimal cellular environments?`,
         options: [

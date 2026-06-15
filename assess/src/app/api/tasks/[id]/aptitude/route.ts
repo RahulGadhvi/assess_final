@@ -2,34 +2,55 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findHiringTaskById } from "@/lib/dbStore";
 
+interface QuestionOption {
+  id?: string;
+  text: string;
+  isCorrect?: boolean;
+}
+
+interface QuestionPayload {
+  id?: string;
+  section?: string;
+  text: string;
+  options?: QuestionOption[];
+}
+
+const normalizeQuestions = (questions: QuestionPayload[]) =>
+  questions.map((question, index) => ({
+    id: question.id ?? `question-${index}`,
+    section: question.section ?? "General Reasoning",
+    text: question.text,
+    options: (question.options ?? []).map((option, optionIndex) => ({
+      id: option.id ?? `option-${index}-${optionIndex}`,
+      text: option.text,
+      isCorrect: Boolean(option.isCorrect),
+    })),
+  }));
+
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
     const taskId = params.id;
-    const body = await req.json();
-    const { questions } = body;
+    const body = (await req.json()) as { questions?: QuestionPayload[] };
+    const questions = body.questions ?? [];
 
     if (!taskId || !Array.isArray(questions)) {
       return NextResponse.json({ error: "Missing required parameters." }, { status: 400 });
     }
 
-    // 1. Live Production PostgreSQL Sync via Prisma
-    if (process.env.DATABASE_URL && !taskId.startsWith("demo-") && !taskId.startsWith("task-")) {
-      const dbClient = prisma as any;
+    const normalizedQuestions = normalizeQuestions(questions);
 
-      // Wrap in a transaction to perform a clean overwrite operation
-      await dbClient.$transaction([
-        // Delete all old aptitude questions associated with this specific task
-        dbClient.question.deleteMany({
+    if (process.env.DATABASE_URL && !taskId.startsWith("demo-") && !taskId.startsWith("task-")) {
+      await prisma.$transaction([
+        prisma.question.deleteMany({
           where: { aptitudeTaskId: taskId }
         }),
-        // Re-insert the updated question matrix structure matching your schema definitions
-        ...questions.map((q: any) => dbClient.question.create({
+        ...normalizedQuestions.map((q) => prisma.question.create({
           data: {
             section: q.section || "General Reasoning",
             text: q.text,
             aptitudeTaskId: taskId,
             options: {
-              create: q.options.map((o: any) => ({
+              create: (q.options ?? []).map((o) => ({
                 text: o.text,
                 isCorrect: o.isCorrect || false
               }))
@@ -42,18 +63,17 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ success: true, message: "Aptitude profile fully synced with database." });
     }
 
-    // 2. Fallback for Memory Sandbox Mock States
     const matchedTask = await findHiringTaskById(taskId);
     if (matchedTask) {
-      matchedTask.aptitudeQuestions = questions;
+      matchedTask.aptitudeQuestions = normalizedQuestions as typeof matchedTask.aptitudeQuestions;
       console.log(`[SANDBOX_APTITUDE_SYNC] Synced changes in local sandbox memory for task: ${taskId}`);
       return NextResponse.json({ success: true, message: "Aptitude cache synced." });
     }
 
     return NextResponse.json({ error: "Target task index not found." }, { status: 404 });
-
-  } catch (error: any) {
-    console.error(`[API_APTITUDE_PUT_CRITICAL_FAILURE] ${error.message}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[API_APTITUDE_PUT_CRITICAL_FAILURE] ${message}`);
     return NextResponse.json({ error: "Internal system error processing question database update." }, { status: 500 });
   }
 }

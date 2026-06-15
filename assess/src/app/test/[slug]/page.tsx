@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowRight, CheckCircle2, Award, ClipboardCheck, BookOpen } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 interface Option {
   id: string;
@@ -20,7 +20,6 @@ interface Question {
 
 export default function CandidateTestPortal() {
   const params = useParams();
-  const router = useRouter();
   const slugString = (params.slug as string) || "";
 
   // Split routing parameters out from slug token (e.g., "taskid_aptitude")
