@@ -1,14 +1,26 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+const globalForPrisma = globalThis as typeof globalThis & {
+  prisma?: PrismaClient;
 };
 
-// Instantiates a single connection pool to prevent exhausting Supabase connections during hot-reloads
-export const prisma =
-  globalForPrisma.prisma ??
+const createPrismaClient = () =>
   new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const getPrismaClient = (): PrismaClient => {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+
+  return globalForPrisma.prisma;
+};
+
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getPrismaClient();
+    const value = Reflect.get(client, prop, receiver);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
