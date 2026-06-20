@@ -47,6 +47,7 @@ export async function POST(req: Request) {
       interviewContent?: InterviewPayload[];
     };
     const { title, location, workType, jdText, aptitudeQuestions, domainQuestions, interviewContent } = body;
+    const companyName = typeof body.companyName === "string" ? body.companyName : undefined;
 
     if (!title || !location || !workType || !jdText) {
       return NextResponse.json({ error: "Missing core data parameters." }, { status: 400 });
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
       signalToLookFor: item.signalToLookFor,
     }));
 
-    const formattedRecord = {
+    const formattedRecord: any = {
       id: uniqueTaskId,
       title,
       location,
@@ -130,6 +131,11 @@ export async function POST(req: Request) {
 
       console.log(`[PRISMA_SYNC] Fresh evaluation kit deployed cleanly onto PostgreSQL slot: ${createdTask.id}`);
       return NextResponse.json({ success: true, taskId: createdTask.id });
+    }
+
+    // attach simple company marker for in-memory registry if provided
+    if (companyName) {
+      formattedRecord.company = companyName;
     }
 
     taskRegistry.unshift(formattedRecord);

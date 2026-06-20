@@ -11,17 +11,17 @@ export async function POST(req: Request) {
     const companyName = typeof body.companyName === "string" ? body.companyName : "";
     const email = typeof body.email === "string" ? body.email : "";
 
-    if (!companyName) {
-      return NextResponse.json({ error: "Company name is required." }, { status: 400 });
+    if (!companyName || !email) {
+      return NextResponse.json({ error: "Company name and email are required." }, { status: 400 });
     }
 
     if (process.env.DATABASE_URL) {
       await prisma.employer.updateMany({
-        where: email ? { email } : {},
+        where: { email },
         data: { companyName }
       });
 
-      console.log(`[DB_SETTINGS_SYNC] Updated company name to: ${companyName}`);
+      console.log(`[DB_SETTINGS_SYNC] Updated company name to: ${companyName} for ${email}`);
     }
 
     return NextResponse.json({ success: true, company: companyName });

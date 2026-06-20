@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getAllHiringTasks } from "@/lib/dbStore";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const tasks = await getAllHiringTasks();
+    const url = new URL(req.url);
+    const companyName = url.searchParams.get("companyName") || undefined;
+    const tasks = await getAllHiringTasks(companyName);
 
     return NextResponse.json(
       { success: true, tasks },

@@ -41,6 +41,7 @@ export interface HiringTask {
   candidatesCount: number;
   completionRate: number;
   status: string;
+  company?: string;
   aptitudeQuestions: Question[];
   domainQuestions: Question[];
   interviewQuestions: InterviewQuestion[];
@@ -53,6 +54,7 @@ type HiringTaskWithRelations = Prisma.HiringTaskGetPayload<{
     domainQuestions: { include: { options: true } };
     interviewQuestions: true;
     candidates: true;
+    employer: true;
   };
 }>;
 
@@ -78,6 +80,7 @@ const mapTask = (task: HiringTaskWithRelations): HiringTask => ({
   candidatesCount: task.candidatesCount,
   completionRate: task.completionRate,
   status: task.status,
+  company: (task as any).employer?.companyName ?? undefined,
   aptitudeQuestions: (task.aptitudeQuestions ?? []).map((question) => ({
     id: question.id,
     section: question.section,
@@ -125,6 +128,7 @@ if (!globalForStore.taskRegistry) {
       id: "task-1",
       title: "Senior Product Designer",
       location: "Bengaluru, India",
+      company: "Tata",
       workType: "Hybrid",
       jdText: "Design scalable design systems and manage cross-functional UI projects.",
       date: "2026-06-01",
@@ -144,6 +148,7 @@ if (!globalForStore.taskRegistry) {
       id: "task-2",
       title: "Backend Engineer (Go)",
       location: "Remote",
+      company: "RemoteOrg",
       workType: "Full-time",
       jdText: "Optimize concurrent database processing algorithms and build distributed pub/sub channels.",
       date: "2026-05-28",
@@ -167,16 +172,18 @@ export const taskRegistry = globalForStore.taskRegistry;
  * Data Access Layer helper engines to abstract in-memory state scaling
  * cleanly away into production Prisma pools dynamically.
  */
-export async function getAllHiringTasks(employerId?: string): Promise<HiringTask[]> {
+export async function getAllHiringTasks(companyName?: string): Promise<HiringTask[]> {
   if (process.env.DATABASE_URL) {
     try {
+      const whereClause = companyName ? { employer: { companyName } } : {};
       const tasks = await prisma.hiringTask.findMany({
-        where: employerId ? { employerId } : {},
+        where: whereClause,
         include: {
           aptitudeQuestions: { include: { options: true } },
           domainQuestions: { include: { options: true } },
           interviewQuestions: true,
           candidates: true,
+          employer: true,
         },
         orderBy: { date: "desc" },
       });
@@ -186,6 +193,11 @@ export async function getAllHiringTasks(employerId?: string): Promise<HiringTask
       console.error("[DB_STORE_DAL_ERROR] Falling back to memory registry initialization loop", error);
     }
   }
+
+  if (companyName) {
+    return taskRegistry.filter((t) => ((t.company || "") as string).toLowerCase() === companyName.toLowerCase());
+  }
+
   return taskRegistry;
 }
 
