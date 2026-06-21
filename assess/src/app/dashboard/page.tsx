@@ -25,20 +25,25 @@ export default function DashboardPage() {
   
   // Organization States
   const [companyName, setCompanyName] = useState("Tata");
+  const [companyEmail, setCompanyEmail] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedCompany = localStorage.getItem("employer_company");
+      const storedEmail = localStorage.getItem("employer_email");
       if (storedCompany) setCompanyName(storedCompany);
+      if (storedEmail) setCompanyEmail(storedEmail);
     }
     fetchTasks();
   }, []);
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch("/api/tasks/list");
+      const storedCompany = typeof window !== "undefined" ? localStorage.getItem("employer_company") : null;
+      const query = storedCompany ? `?companyName=${encodeURIComponent(storedCompany)}` : "";
+      const response = await fetch(`/api/tasks/list${query}`);
       if (response.ok) {
         const data = await response.json();
         setTasks(data.tasks || []);
@@ -69,22 +74,24 @@ export default function DashboardPage() {
     e.preventDefault();
     
     try {
-      // Hit the backend settings route to save to Supabase
+      // Hit the backend settings route to save to Supabase (requires email)
       const response = await fetch("/api/auth/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName }),
+        body: JSON.stringify({ companyName, email: companyEmail }),
       });
 
       if (response.ok) {
         localStorage.setItem("employer_company", companyName);
+        localStorage.setItem("employer_email", companyEmail);
         setIsSaved(true);
         setTimeout(() => {
           setIsSaved(false);
           window.location.reload(); // Refresh display strings across layouts
         }, 1000);
       } else {
-        alert("Failed to save company name changes onto database cluster.");
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || "Failed to save company name changes onto database cluster.");
       }
     } catch (err) {
       console.error("Error saving settings to DB:", err);
@@ -93,6 +100,7 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     localStorage.removeItem("employer_company");
+    localStorage.removeItem("employer_email");
     router.push("/");
   };
 
@@ -251,6 +259,17 @@ export default function DashboardPage() {
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     required
+                    className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none focus:border-accent"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Account Email</label>
+                  <input
+                    type="email"
+                    value={companyEmail}
+                    onChange={(e) => setCompanyEmail(e.target.value)}
+                    placeholder="you@company.com"
                     className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none focus:border-accent"
                   />
                 </div>

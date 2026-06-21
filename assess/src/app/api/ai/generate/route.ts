@@ -14,29 +14,35 @@ export async function POST(req: Request) {
     const jd = typeof body.jd === "string" ? body.jd : "";
     const type = typeof body.type === "string" ? body.type : "";
     const roleTitle = typeof body.roleTitle === "string" ? body.roleTitle : undefined;
+    const location = typeof body.location === "string" ? body.location : "";
 
     if (!jd || !type) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    console.log(`[AI_ROUTE] Initiating generation phase for type: ${type}`);
+    console.log(`[AI_ROUTE] Initiating generation phase for type: ${type} (location: ${location})`);
 
     if (!openai || apiKey?.includes("your-actual-api-key")) {
       console.warn("[AI_ROUTE] Warning: Valid OPENAI_API_KEY not found in environment. Engaging hyper-fast local fallback simulation.");
       return NextResponse.json(getFallbackData(type, roleTitle));
     }
 
+    // Small region-aware hint to make generated content culturally relevant
+    const regionHint = location && /india|bangalore|bengaluru|ahmedabad|mumbai|delhi|kolkata|hyderabad/i.test(location)
+      ? "Tailor examples and contexts to Indian candidates; prefer local scenarios, units, and culturally familiar references where appropriate."
+      : "";
+
     let systemPrompt = "";
     let expectedStructure = "";
 
     if (type === "aptitude") {
-      systemPrompt = `You are an expert IO Psychologist. Generate a 20-question cognitive aptitude test based on the seniority and requirements of this job description. Distribution: 30% General Reasoning, 50% Math/Data, 20% Communication.`;
-      expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "q1", "section": "General Reasoning", "text": "...", "options": [ { "id": "o1", "text": "...", "isCorrect": true }, { "id": "o2", "text": "...", "isCorrect": false }, { "id": "o3", "text": "...", "isCorrect": false }, { "id": "o4", "text": "...", "isCorrect": false } ] } ] }`;
+      systemPrompt = `You are an expert Industrial & Organizational Psychologist. Generate a 20-question cognitive aptitude test based on the seniority and requirements of this job description. Distribution: 30% General Reasoning, 50% Math/Data, 20% Communication. For each question, specify difficulty (easy/medium/hard) and ensure options are unambiguous; distractors must be plausible but clearly incorrect. ${regionHint}`;
+      expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "q1", "section": "General Reasoning", "difficulty": "medium", "text": "...", "options": [ { "id": "o1", "text": "...", "isCorrect": true }, { "id": "o2", "text": "...", "isCorrect": false }, { "id": "o3", "text": "...", "isCorrect": false }, { "id": "o4", "text": "...", "isCorrect": false } ] } ] }`;
     } else if (type === "domain") {
-      systemPrompt = `You are a strict technical hiring manager. Generate a 20-question domain-specific multiple choice test testing deep, practical knowledge required for the role of ${roleTitle || "the given JD"}. Focus on the specific tech stack and responsibilities mentioned in the JD.`;
-      expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "q1", "section": "Domain Knowledge", "text": "...", "options": [ { "id": "o1", "text": "...", "isCorrect": true }, { "id": "o2", "text": "...", "isCorrect": false }, { "id": "o3", "text": "...", "isCorrect": false }, { "id": "o4", "text": "...", "isCorrect": false } ] } ] }`;
+      systemPrompt = `You are a strict technical hiring manager. Generate a 20-question domain-specific multiple choice test testing practical, hands-on knowledge required for the role of ${roleTitle || "the given JD"}. Use real-world scenarios, short code or configuration snippets where relevant, and ensure at least 40% of questions map directly to technologies or responsibilities in the JD. Provide one clearly correct answer and three plausible distractors. ${regionHint}`;
+      expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "q1", "section": "Domain Knowledge", "difficulty": "hard", "text": "...", "options": [ { "id": "o1", "text": "...", "isCorrect": true }, { "id": "o2", "text": "...", "isCorrect": false }, { "id": "o3", "text": "...", "isCorrect": false }, { "id": "o4", "text": "...", "isCorrect": false } ] } ] }`;
     } else if (type === "interview") {
-      systemPrompt = `You are an executive recruiter. Extract the key competencies from the JD and generate a structured 10-question interview script for the hiring manager. Focus on technical depth, situational judgment, and culture fit.`;
+      systemPrompt = `You are an experienced hiring manager and executive recruiter. Extract key competencies from the JD and generate a structured 10-question interview script prioritizing technical depth, situational judgment, and cultural fit. For each question include a concise follow-up probe and a clear signal the interviewer should look for in answers. ${regionHint}`;
       expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "i1", "competency": "Technical Capability", "question": "...", "followUpProbe": "...", "signalToLookFor": "..." } ] }`;
     }
 

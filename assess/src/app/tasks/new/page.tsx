@@ -86,7 +86,7 @@ export default function CreateTaskPage() {
           const aptResponse = await fetch("/api/ai/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jd, type: "aptitude", roleTitle: title }),
+            body: JSON.stringify({ jd, type: "aptitude", roleTitle: title, location }),
           });
           if (!aptResponse.ok) throw new Error("Cognitive aptitude generation failed");
           const aptitudeData = await aptResponse.json();
@@ -96,7 +96,7 @@ export default function CreateTaskPage() {
           const domResponse = await fetch("/api/ai/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jd, type: "domain", roleTitle: title }),
+            body: JSON.stringify({ jd, type: "domain", roleTitle: title, location }),
           });
           if (!domResponse.ok) throw new Error("Domain skill assessment generation failed");
           const domainData = await domResponse.json();
@@ -106,7 +106,7 @@ export default function CreateTaskPage() {
           const intResponse = await fetch("/api/ai/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ jd, type: "interview", roleTitle: title }),
+            body: JSON.stringify({ jd, type: "interview", roleTitle: title, location }),
           });
           if (!intResponse.ok) throw new Error("Live interviewer script generation failed");
           const interviewData = await intResponse.json();
@@ -124,6 +124,7 @@ export default function CreateTaskPage() {
               aptitudeQuestions: aptitudeData.questions,
               domainQuestions: domainData.questions,
               interviewContent: interviewData.questions,
+              companyName: typeof window !== "undefined" ? localStorage.getItem("employer_company") || undefined : undefined,
             }),
           });
 
