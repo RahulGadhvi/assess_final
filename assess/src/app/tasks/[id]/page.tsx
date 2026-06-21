@@ -32,17 +32,25 @@ export default function TaskDetailPage() {
   const [candidates, setCandidates] = useState<CandidateRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadTaskDetails = useCallback(async () => {
+    setErrorMessage(null);
     try {
       const response = await fetch(`/api/tasks/${params.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTask(data.task);
-        setCandidates(data.task.candidates || []);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const reason = errorData?.error || response.statusText || "Unable to load task.";
+        setErrorMessage(reason);
+        return;
       }
+
+      const data = await response.json();
+      setTask(data.task);
+      setCandidates(data.task.candidates || []);
     } catch (err) {
       console.error("Error loading task records:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Unable to load task records.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -146,11 +154,45 @@ export default function TaskDetailPage() {
     );
   };
 
-  if (isLoading || !task) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center font-mono text-text-muted text-xs gap-3 animate-pulse">
         <Loader2 className="w-4 h-4 animate-spin text-accent" />
         <span>Loading position workspace track...</span>
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center font-mono text-text-primary gap-4 px-4">
+        <div className="p-6 bg-surface border border-border rounded-2xl max-w-xl">
+          <p className="text-sm font-semibold text-destructive">Unable to load this task.</p>
+          <p className="mt-2 text-xs text-text-muted">{errorMessage}</p>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              loadTaskDetails();
+            }}
+            className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-accent text-white text-xs font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-center font-mono text-text-primary gap-4 px-4">
+        <div className="p-6 bg-surface border border-border rounded-2xl max-w-xl">
+          <p className="text-sm font-semibold text-text-muted">Task not found.</p>
+          <p className="mt-2 text-xs text-text-muted">The requested hiring task could not be found.</p>
+          <Link href="/dashboard" className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-accent text-white text-xs font-medium">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
