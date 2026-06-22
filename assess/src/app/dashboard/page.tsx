@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Plus, Briefcase, Users, CheckCircle, ArrowRight, Trash2, Save, Check, LayoutDashboard, Settings, LogOut, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 interface TaskSummary {
   id: string;
@@ -18,7 +18,7 @@ interface TaskSummary {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
 
   const [activeTab, setActiveTab] = useState<"tasks" | "settings">("tasks");
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
@@ -79,11 +79,9 @@ export default function DashboardPage() {
       });
 
       if (response.ok) {
+        await update({ companyName });
         setIsSaved(true);
-        setTimeout(() => {
-          setIsSaved(false);
-          window.location.reload();
-        }, 1000);
+        setTimeout(() => setIsSaved(false), 2000);
       } else {
         const data = await response.json().catch(() => ({}));
         alert(data.error || "Failed to save settings.");
@@ -93,8 +91,8 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogout = () => {
-    router.push("/");
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/" });
   };
 
   if (status === "loading" || isLoading) {
