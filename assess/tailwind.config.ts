@@ -9,31 +9,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        surface: "var(--surface)",
-        border: "var(--border)",
+        background: "rgb(var(--background) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
         text: {
-          primary: "var(--text-primary)",
-          muted: "var(--text-muted)",
+          primary: "rgb(var(--text-primary) / <alpha-value>)",
+          muted: "rgb(var(--text-muted) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "var(--accent)",
-          hover: "var(--accent-hover)",
-          glow: "var(--accent-glow)",
-          subtle: "var(--accent-subtle)",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
         },
-        destructive: "var(--destructive)",
-        success: "var(--success)",
-      },
-      fontFamily: {
-        sans: ["var(--font-sans)", "sans-serif"],
-        mono: ["var(--font-mono)", "monospace"],
-      },
-      boxShadow: {
-        'accent-glow': '0 0 20px var(--accent-glow)',
+        destructive: "rgb(var(--destructive) / <alpha-value>)",
+        success: "rgb(var(--success) / <alpha-value>)",
       },
     },
   },
   plugins: [],
 };
+
 export default config;

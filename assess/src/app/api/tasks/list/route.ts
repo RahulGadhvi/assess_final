@@ -1,26 +1,20 @@
 import { NextResponse } from "next/server";
 import { getAllHiringTasks } from "@/lib/dbStore";
+import { auth } from "@/lib/auth";
 
-export async function GET(req: Request) {
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const url = new URL(req.url);
-    const companyName = url.searchParams.get("companyName") || undefined;
-    const tasks = await getAllHiringTasks(companyName);
-
+    const tasks = await getAllHiringTasks(session.user.id);
     return NextResponse.json(
       { success: true, tasks },
-      {
-        headers: {
-          "Cache-Control": "no-store, max-age=0, must-revalidate",
-        },
-      }
+      { headers: { "Cache-Control": "no-store, max-age=0, must-revalidate" } }
     );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[API_TASKS_LIST_CRITICAL] ${message}`);
-    return NextResponse.json(
-      { error: "Failed to pull position logs from core telemetry stack." },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Failed to fetch tasks." }, { status: 500 });
   }
 }

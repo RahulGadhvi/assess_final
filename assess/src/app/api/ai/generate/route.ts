@@ -4,10 +4,6 @@ import OpenAI from "openai";
 const apiKey = process.env.OPENAI_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "An unexpected error occurred.";
-}
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
@@ -17,20 +13,21 @@ export async function POST(req: Request) {
     const location = typeof body.location === "string" ? body.location : "";
 
     if (!jd || !type) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    console.log(`[AI_ROUTE] Initiating generation phase for type: ${type} (location: ${location})`);
-
-    if (!openai || apiKey?.includes("your-actual-api-key")) {
-      console.warn("[AI_ROUTE] Warning: Valid OPENAI_API_KEY not found in environment. Engaging hyper-fast local fallback simulation.");
-      return NextResponse.json(getFallbackData(type, roleTitle));
+    if (!openai) {
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured." },
+        { status: 503 }
+      );
     }
 
-    // Small region-aware hint to make generated content culturally relevant
-    const regionHint = location && /india|bangalore|bengaluru|ahmedabad|mumbai|delhi|kolkata|hyderabad/i.test(location)
-      ? "Tailor examples and contexts to Indian candidates; prefer local scenarios, units, and culturally familiar references where appropriate."
-      : "";
+    const regionHint =
+      location &&
+      /india|bangalore|bengaluru|ahmedabad|mumbai|delhi|kolkata|hyderabad/i.test(location)
+        ? "Tailor examples and contexts to Indian candidates; prefer local scenarios, units, and culturally familiar references where appropriate."
+        : "";
 
     let systemPrompt = "";
     let expectedStructure = "";
@@ -46,62 +43,29 @@ export async function POST(req: Request) {
       expectedStructure = `Return strictly in this JSON format: { "questions": [ { "id": "i1", "competency": "Technical Capability", "question": "...", "followUpProbe": "...", "signalToLookFor": "..." } ] }`;
     }
 
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-        messages: [
-          {
-            role: "system",
-            content: `${systemPrompt}\n\n${expectedStructure}\n\nRespond only in valid JSON, no markdown fences, no preamble.`
-          },
-          {
-            role: "user",
-            content: `Job Description:\n\n${jd}`
-          }
-        ],
-      });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      response_format: { type: "json_object" },
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `${systemPrompt}\n\n${expectedStructure}\n\nRespond only in valid JSON, no markdown fences, no preamble.`,
+        },
+        {
+          role: "user",
+          content: `Job Description:\n\n${jd}`,
+        },
+      ],
+    });
 
-      const responseContent = completion.choices[0].message.content;
-      if (!responseContent) throw new Error("Empty payload returned from OpenAI network node.");
-
-      return NextResponse.json(JSON.parse(responseContent));
-    } catch (apiError) {
-      console.error(`[OPENAI_LIVE_EXCEPTION] Direct API error: ${getErrorMessage(apiError)}. Safely routing workspace to fallback asset engine.`);
-      return NextResponse.json(getFallbackData(type, roleTitle));
+    const responseContent = completion.choices[0].message.content;
+    if (!responseContent) {
+      return NextResponse.json({ error: "Empty response from AI." }, { status: 502 });
     }
-  } catch (error) {
-    const message = getErrorMessage(error);
-    console.error(`[AI_GENERATE_CRITICAL_ERROR] - ${message}`);
-    return NextResponse.json({ error: "Failed to generate artifact", details: message }, { status: 500 });
-  }
-}
 
-function getFallbackData(type: string, roleTitle?: string) {
-  if (type === "interview") {
-    return {
-      questions: [
-        { id: "i1", competency: "System Architecture", question: `How would you scale a distributed delivery hub tracking real-time locations across Indian tier-1 infrastructure grid systems?`, followUpProbe: "What caching topology guarantees sub-50ms sync thresholds under peak loads?", signalToLookFor: "Looks for horizontal partitioning methodologies and Redis pub/sub layer familiarity." }
-      ]
-    };
+    return NextResponse.json(JSON.parse(responseContent));
+  } catch {
+    return NextResponse.json({ error: "Failed to generate content." }, { status: 500 });
   }
-
-  return {
-    questions: [
-      {
-        id: "q1",
-        section: type === "aptitude" ? "General Reasoning" : "Domain Execution",
-        text: type === "aptitude"
-          ? "A delivery platform scales active operations across 5 metropolitan clusters in India. If traffic scales quadratically relative to grid density, how many clusters are active when capacity utilization increases 400%?"
-          : `In a production setup built for ${roleTitle || "Frontend Tasks"}, which optimization strategy reduces hydration bottlenecks on slow mobile networks in sub-optimal cellular environments?`,
-        options: [
-          { id: "o1", text: type === "aptitude" ? "10 active clusters" : "Incremental static regeneration paired with partial structural hydration primitives", isCorrect: true },
-          { id: "o2", text: type === "aptitude" ? "15 active clusters" : "Client-side lazy state replication models", isCorrect: false },
-          { id: "o3", text: type === "aptitude" ? "20 active clusters" : "Monolithic layout rendering bypass arrays", isCorrect: false },
-          { id: "o4", text: type === "aptitude" ? "25 active clusters" : "Synchronous context payload propagation parameters", isCorrect: false },
-        ],
-      }
-    ]
-  };
 }

@@ -1,10 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
-  // The custom output path has been completely removed to prevent Next.js MODULE_NOT_FOUND errors.
-  // It will now safely compile to the standard node_modules/@prisma/client directory.
 }
 
 datasource db {
@@ -13,90 +8,63 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// -------------------------------------------------------------------
-// 1. Core Tenant/User Auth Model
-// -------------------------------------------------------------------
 model Employer {
-  id           String       @id @default(uuid())
-  email        String       @unique
+  id           String      @id @default(uuid())
+  email        String      @unique
+  name         String
   passwordHash String
   companyName  String
-  createdAt    DateTime     @default(now())
-  
-  tasks        HiringTask[] // One-to-many relation: An employer can create many tasks
+  createdAt    DateTime    @default(now())
+  tasks        HiringTask[]
 }
 
-// -------------------------------------------------------------------
-// 2. Hiring Task (The main role dashboard container)
-// -------------------------------------------------------------------
 model HiringTask {
-  id              String   @id @default(uuid())
-  title           String
-  location        String
-  workType        String
-  jdText          String
-  date            DateTime @default(now())
-  candidatesCount Int      @default(0)
-  completionRate  Int      @default(0)
-  status          String   @default("Active")
-
-  // Relation back to the Employer
-  employerId      String?
-  employer        Employer? @relation(fields: [employerId], references: [id], onDelete: Cascade)
-
-  // Separated relations for Aptitude vs Domain multiple-choice questions
-  aptitudeQuestions Question[] @relation("TaskAptitudeQuestions")
-  domainQuestions   Question[] @relation("TaskDomainQuestions")
-  
-  // Relations to Interview Guides and Applicants
+  id               String              @id @default(uuid())
+  title            String
+  location         String
+  workType         String
+  jdText           String
+  date             DateTime            @default(now())
+  candidatesCount  Int                 @default(0)
+  completionRate   Int                 @default(0)
+  status           String              @default("Active")
+  employerId       String?
+  employer         Employer?           @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  aptitudeQuestions Question[]         @relation("TaskAptitudeQuestions")
+  domainQuestions   Question[]         @relation("TaskDomainQuestions")
   interviewQuestions InterviewQuestion[]
-  candidates         Candidate[]
+  candidates        Candidate[]
 }
 
-// -------------------------------------------------------------------
-// 3. MCQ Core (Used for both Aptitude and Domain tests)
-// -------------------------------------------------------------------
 model Question {
-  id      String @id @default(uuid())
-  section String
-  text    String
-
-  // Relational hooks to figure out if this belongs to Aptitude or Domain
+  id             String     @id @default(uuid())
+  section        String
+  text           String
   aptitudeTaskId String?
   aptitudeTask   HiringTask? @relation("TaskAptitudeQuestions", fields: [aptitudeTaskId], references: [id], onDelete: Cascade)
-
   domainTaskId   String?
   domainTask     HiringTask? @relation("TaskDomainQuestions", fields: [domainTaskId], references: [id], onDelete: Cascade)
-
-  options Option[] // One-to-many relation: A question has multiple choices
+  options        Option[]
 }
 
 model Option {
   id         String   @id @default(uuid())
   text       String
   isCorrect  Boolean  @default(false)
-  
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
-// -------------------------------------------------------------------
-// 4. Human Interview Evaluator Script
-// -------------------------------------------------------------------
 model InterviewQuestion {
-  id              String @id @default(uuid())
+  id              String     @id @default(uuid())
   competency      String
   question        String
   followUpProbe   String
   signalToLookFor String
-  
   taskId          String
   task            HiringTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
-// -------------------------------------------------------------------
-// 5. Applicant / Candidate Pipeline
-// -------------------------------------------------------------------
 model Candidate {
   id       String @id @default(uuid())
   name     String
@@ -104,7 +72,7 @@ model Candidate {
   domScore Int?
   intScore Int?
   overall  Int?
-  
+  notes    String @default("")
   taskId   String
   task     HiringTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }

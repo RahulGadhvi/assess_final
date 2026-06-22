@@ -4,149 +4,77 @@ import OpenAI from "openai";
 const apiKey = process.env.OPENAI_API_KEY;
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "An unexpected error occurred.";
-}
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as Record<string, unknown>;
     const prompt = typeof body.prompt === "string" ? body.prompt : "";
 
     if (!prompt) {
-      return NextResponse.json({ error: "Please enter a role prompt (e.g. Sales Executive with 1 year experience)" }, { status: 400 });
+      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
     }
 
-    console.log(`[JD_GENERATOR] Synthesizing standardized schema template for prompt: "${prompt}"`);
-
-    if (!openai || apiKey?.includes("your-actual-api-key")) {
-      console.warn("[JD_GENERATOR] No OpenAI API Key found. Routing workspace to instant local fallback template.");
-      return NextResponse.json({ jd: getFallbackJD(prompt) });
+    if (!openai) {
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured." },
+        { status: 503 }
+      );
     }
 
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        temperature: 0.7,
-        messages: [
-          {
-            role: "system",
-            content: `You are an elite corporate technical recruiter. Generate a concise, highly structured Job Description template based on the user's role request.
-            
-            You MUST follow this exact, clean structure. Keep each section short, focused, and directly measurable:
-            
-            JOB TITLE: [Insert Title]
-            EXPERIENCE REQUIRED: [Insert Experience]
-            
-            KEY RESPONSIBILITIES:
-            - [Responsibility 1 - clear & measurable]
-            - [Responsibility 2]
-            - [Responsibility 3]
-            
-            REQUIRED SKILLS:
-            - [Core technical/professional skill 1]
-            - [Core technical/professional skill 2]
-            - [Core technical/professional skill 3]
-            
-            PREFERRED SKILLS:
-            - [Value-add skill 1]
-            - [Value-add skill 2]
-            
-            TOOLS & SOFTWARE KNOWLEDGE:
-            - [Specific software, platforms, or tools 1]
-            - [Specific software, platforms, or tools 2]
-            
-            COMMUNICATION REQUIREMENTS:
-            - [Clear expectation of communications, stakeholders, or language]
-            
-            ASSESSMENT FOCUS AREAS:
-            - [Focus area 1 optimized for multiple choice testing]
-            - [Focus area 2 optimized for multiple choice testing]
-            - [Focus area 3 optimized for multiple choice testing]
-            
-            Do not write a conversational introduction or footer. Return ONLY the filled-out plain text template.`
-          },
-          {
-            role: "user",
-            content: `Create a structured JD template for: "${prompt}"`
-          }
-        ]
-      });
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      temperature: 0.7,
+      messages: [
+        {
+          role: "system",
+          content: `You are an elite corporate technical recruiter. Generate a concise, highly structured Job Description template based on the user's role request.
 
-      const generatedText = completion.choices[0].message.content;
-      if (!generatedText) throw new Error("Empty payload returned from OpenAI channel.");
+You MUST follow this exact, clean structure. Keep each section short, focused, and directly measurable:
 
-      return NextResponse.json({ jd: generatedText });
-    } catch (apiError) {
-      console.error(`[JD_GENERATOR_API_EXCEPTION] Direct API error: ${getErrorMessage(apiError)}. Routing safely to fallback.`);
-      return NextResponse.json({ jd: getFallbackJD(prompt) });
-    }
-  } catch (error) {
-    console.error(`[JD_GENERATOR_CRITICAL_FAILURE] ${getErrorMessage(error)}`);
-    return NextResponse.json({ error: "Failed to generate structured JD template." }, { status: 500 });
-  }
-}
-
-function getFallbackJD(prompt: string): string {
-  const cleanPrompt = prompt.toLowerCase();
-
-  if (cleanPrompt.includes("sales") || cleanPrompt.includes("executive")) {
-    return `JOB TITLE: Sales Executive
-EXPERIENCE REQUIRED: 1-2 years in B2B/SaaS or direct sales
+JOB TITLE: [Insert Title]
+EXPERIENCE REQUIRED: [Insert Experience]
 
 KEY RESPONSIBILITIES:
-- Source and qualify corporate pipeline leads through structured outbound tracks
-- Present remote product demonstrations highlighting business value propositions
-- Close standard contract values and manage basic onboarding handoffs
+- [Responsibility 1 - clear & measurable]
+- [Responsibility 2]
+- [Responsibility 3]
 
 REQUIRED SKILLS:
-- Core consultative selling methodologies
-- High-rejection resilient workflow execution
-- CRM pipeline discipline and documentation
+- [Core technical/professional skill 1]
+- [Core technical/professional skill 2]
+- [Core technical/professional skill 3]
 
 PREFERRED SKILLS:
-- Negotiation strategy execution
-- Inbound product marketing alignment
+- [Value-add skill 1]
+- [Value-add skill 2]
 
 TOOLS & SOFTWARE KNOWLEDGE:
-- CRM Platforms (Salesforce, HubSpot, or Zoho)
-- Communication Hubs (Slack, Microsoft Teams, Zoom)
+- [Specific software, platforms, or tools 1]
+- [Specific software, platforms, or tools 2]
 
 COMMUNICATION REQUIREMENTS:
-- Excellent bilingual verbal presentation capabilities in corporate business environments
+- [Clear expectation of communications, stakeholders, or language]
 
 ASSESSMENT FOCUS AREAS:
-- Lead qualification methodologies
-- Overcoming structural customer objections
-- CRM management & sales pipeline velocity metrics`;
+- [Focus area 1 optimized for multiple choice testing]
+- [Focus area 2 optimized for multiple choice testing]
+- [Focus area 3 optimized for multiple choice testing]
+
+Do not write a conversational introduction or footer. Return ONLY the filled-out plain text template.`,
+        },
+        {
+          role: "user",
+          content: `Create a structured JD template for: "${prompt}"`,
+        },
+      ],
+    });
+
+    const generatedText = completion.choices[0].message.content;
+    if (!generatedText) {
+      return NextResponse.json({ error: "Empty response from AI." }, { status: 502 });
+    }
+
+    return NextResponse.json({ jd: generatedText });
+  } catch {
+    return NextResponse.json({ error: "Failed to generate JD." }, { status: 500 });
   }
-
-  return `JOB TITLE: ${prompt} Specialist
-EXPERIENCE REQUIRED: 2-3 years of active execution
-
-KEY RESPONSIBILITIES:
-- Drive core project deliverables safely within scheduled milestones
-- Analyze system requirements and propose clean, modular implementation paths
-- Coordinate cross-functionally to clear production blocks
-
-REQUIRED SKILLS:
-- Core domain problem-solving capabilities
-- Structured workflow documentation
-- High operational ownership indicators
-
-PREFERRED SKILLS:
-- Agile methodology orchestration
-- Collaborative review processes
-
-TOOLS & SOFTWARE KNOWLEDGE:
-- Professional Domain Tool suites (e.g. Git, Figma, JIRA, or Excel)
-- Shared workspace cloud hubs
-
-COMMUNICATION REQUIREMENTS:
-- Standard clear verbal and written reporting structures across team stakeholders
-
-ASSESSMENT FOCUS AREAS:
-- Domain syntax & tool execution
-- System diagnostic workflows
-- Standard troubleshooting methodologies`;
 }

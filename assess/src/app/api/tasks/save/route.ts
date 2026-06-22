@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { taskRegistry } from "@/lib/dbStore";
+import { auth } from "@/lib/auth";
 
 interface QuestionOption {
   id?: string;
@@ -36,6 +36,11 @@ interface InterviewPayload {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = (await req.json()) as {
       title?: string;
@@ -47,13 +52,10 @@ export async function POST(req: Request) {
       interviewContent?: InterviewPayload[];
     };
     const { title, location, workType, jdText, aptitudeQuestions, domainQuestions, interviewContent } = body;
-    const companyName = typeof body.companyName === "string" ? body.companyName : undefined;
 
     if (!title || !location || !workType || !jdText) {
-      return NextResponse.json({ error: "Missing core data parameters." }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
-
-    const uniqueTaskId = "task_" + Math.random().toString(36).substring(2, 7);
 
     const normalizedAptitudeQuestions = normalizeQuestions(aptitudeQuestions, "General Reasoning");
     const normalizedDomainQuestions = normalizeQuestions(domainQuestions, "Domain Knowledge");
@@ -65,86 +67,53 @@ export async function POST(req: Request) {
       signalToLookFor: item.signalToLookFor,
     }));
 
-    const formattedRecord: any = {
-      id: uniqueTaskId,
-      title,
-      location,
-      workType,
-      jdText,
-      date: new Date().toISOString().split("T")[0],
-      candidatesCount: 0,
-      completionRate: 0,
-      status: "Active",
-      aptitudeQuestions: normalizedAptitudeQuestions,
-      domainQuestions: normalizedDomainQuestions,
-      interviewQuestions: normalizedInterviewQuestions,
-      candidates: []
-    };
+    const createdTask = await prisma.hiringTask.create({
+      data: {
+        title,
+        location,
+        workType,
+        jdText,
+        status: "Active",
+        candidatesCount: 0,
+        completionRate: 0,
+        employerId: session.user.id,
+        aptitudeQuestions: {
+          create: normalizedAptitudeQuestions.map((q) => ({
+            section: q.section,
+            text: q.text,
+            options: {
+              create: q.options.map((o) => ({
+                text: o.text,
+                isCorrect: o.isCorrect,
+              })),
+            },
+          })),
+        },
+        domainQuestions: {
+          create: normalizedDomainQuestions.map((q) => ({
+            section: q.section,
+            text: q.text,
+            options: {
+              create: q.options.map((o) => ({
+                text: o.text,
+                isCorrect: o.isCorrect,
+              })),
+            },
+          })),
+        },
+        interviewQuestions: {
+          create: normalizedInterviewQuestions.map((i) => ({
+            competency: i.competency,
+            question: i.question,
+            followUpProbe: i.followUpProbe,
+            signalToLookFor: i.signalToLookFor,
+          })),
+        },
+      },
+    });
 
-    if (process.env.DATABASE_URL) {
-      const createdTask = await prisma.hiringTask.create({
-        data: {
-          title,
-          location,
-          workType,
-          jdText,
-          status: "Active",
-          candidatesCount: 0,
-          completionRate: 0,
-          aptitudeQuestions: {
-            create: normalizedAptitudeQuestions.map((q) => ({
-              section: q.section || "General Reasoning",
-              text: q.text,
-              options: {
-                create: (q.options || []).map((o) => ({
-                  text: o.text,
-                  isCorrect: o.isCorrect || false
-                }))
-              }
-            }))
-          },
-          domainQuestions: {
-            create: normalizedDomainQuestions.map((q) => ({
-              section: q.section || "Domain Knowledge",
-              text: q.text,
-              options: {
-                create: (q.options || []).map((o) => ({
-                  text: o.text,
-                  isCorrect: o.isCorrect || false
-                }))
-              }
-            }))
-          },
-          interviewQuestions: {
-            create: normalizedInterviewQuestions.map((i) => ({
-              competency: i.competency,
-              question: i.question,
-              followUpProbe: i.followUpProbe,
-              signalToLookFor: i.signalToLookFor
-            }))
-          },
-          candidates: {
-            create: []
-          }
-        }
-      });
-
-      console.log(`[PRISMA_SYNC] Fresh evaluation kit deployed cleanly onto PostgreSQL slot: ${createdTask.id}`);
-      return NextResponse.json({ success: true, taskId: createdTask.id });
-    }
-
-    // attach simple company marker for in-memory registry if provided
-    if (companyName) {
-      formattedRecord.company = companyName;
-    }
-
-    taskRegistry.unshift(formattedRecord);
-    console.log(`[STORE_SYNC] Clean sandbox task slot initialized in-memory: ${uniqueTaskId}`);
-
-    return NextResponse.json({ success: true, taskId: uniqueTaskId });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error(`[SAVE_ROUTE_CRITICAL_FAILURE] - ${message}`);
-    return NextResponse.json({ error: "Internal processing tracking subsystem failure." }, { status: 500 });
+    return NextResponse.json({ success: true, taskId: createdTask.id });
+  } catch {
+    return NextResponse.json({ error: "Failed to save task." }, { status: 500 });
   }
 }

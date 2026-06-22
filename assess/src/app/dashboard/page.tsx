@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Plus, Briefcase, Users, CheckCircle, ArrowRight, Trash2, Save, Check, LayoutDashboard, Settings, LogOut } from "lucide-react";
+import { Plus, Briefcase, Users, CheckCircle, ArrowRight, Trash2, Save, Check, LayoutDashboard, Settings, LogOut, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface TaskSummary {
   id: string;
@@ -17,39 +18,37 @@ interface TaskSummary {
 
 export default function DashboardPage() {
   const router = useRouter();
-  
-  // Single Source of Truth for view tabs
+  const { data: session, status } = useSession();
+
   const [activeTab, setActiveTab] = useState<"tasks" | "settings">("tasks");
   const [tasks, setTasks] = useState<TaskSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Organization States
-  const [companyName, setCompanyName] = useState("Tata");
-  const [companyEmail, setCompanyEmail] = useState("");
-  const [apiKey, setApiKey] = useState("");
+
+  const [companyName, setCompanyName] = useState("");
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedCompany = localStorage.getItem("employer_company");
-      const storedEmail = localStorage.getItem("employer_email");
-      if (storedCompany) setCompanyName(storedCompany);
-      if (storedEmail) setCompanyEmail(storedEmail);
+    if (status === "unauthenticated") {
+      router.push("/");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (session?.user) {
+      setCompanyName((session.user as any).companyName || "");
     }
     fetchTasks();
-  }, []);
+  }, [session]);
 
   const fetchTasks = async () => {
     try {
-      const storedCompany = typeof window !== "undefined" ? localStorage.getItem("employer_company") : null;
-      const query = storedCompany ? `?companyName=${encodeURIComponent(storedCompany)}` : "";
-      const response = await fetch(`/api/tasks/list${query}`);
+      const response = await fetch("/api/tasks/list");
       if (response.ok) {
         const data = await response.json();
         setTasks(data.tasks || []);
       }
-    } catch (err) {
-      console.error("Error fetching tasks:", err);
+    } catch {
+      console.error("Error fetching tasks");
     } finally {
       setIsLoading(false);
     }
@@ -58,59 +57,63 @@ export default function DashboardPage() {
   const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Are you sure you want to permanently delete this position?")) return;
+    if (!confirm("Delete this position permanently?")) return;
 
     try {
       const response = await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
       if (response.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskId));
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
+      console.error("Error deleting task");
     }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
-      // Hit the backend settings route to save to Supabase (requires email)
       const response = await fetch("/api/auth/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, email: companyEmail }),
+        body: JSON.stringify({ companyName }),
       });
 
       if (response.ok) {
-        localStorage.setItem("employer_company", companyName);
-        localStorage.setItem("employer_email", companyEmail);
         setIsSaved(true);
         setTimeout(() => {
           setIsSaved(false);
-          window.location.reload(); // Refresh display strings across layouts
+          window.location.reload();
         }, 1000);
       } else {
         const data = await response.json().catch(() => ({}));
-        alert(data.error || "Failed to save company name changes onto database cluster.");
+        alert(data.error || "Failed to save settings.");
       }
-    } catch (err) {
-      console.error("Error saving settings to DB:", err);
+    } catch {
+      console.error("Error saving settings");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("employer_company");
-    localStorage.removeItem("employer_email");
     router.push("/");
   };
 
+  if (status === "loading" || isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  const userName = session?.user?.name || session?.user?.email?.split("@")[0] || "User";
+  const initials = userName.substring(0, 2).toUpperCase();
+  const displayCompany = companyName || "Workspace";
+
   return (
     <div className="min-h-screen bg-background flex text-text-primary">
-      
-      {/* Embedded Sidebar - Guaranteed to trigger active state modifications instantly */}
       <aside className="w-[220px] h-screen fixed left-0 top-0 bg-[#0A0A0A] border-r border-border flex flex-col z-20">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <span className="font-mono font-bold text-xl tracking-tighter">assess.</span>
+          <span className="font-bold text-xl tracking-tighter">assess.</span>
         </div>
 
         <nav className="flex-1 py-6 flex flex-col gap-1 px-3">
@@ -142,16 +145,16 @@ export default function DashboardPage() {
         </nav>
 
         <div className="p-4 border-t border-border flex items-center gap-3 mt-auto">
-          <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold">
-            RG
+          <div className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Rahul Gadhvi</p>
-            <p className="text-xs text-text-muted truncate font-mono uppercase tracking-tight">{companyName}</p>
+            <p className="text-sm font-medium truncate">{userName}</p>
+            <p className="text-xs text-text-muted truncate">{displayCompany}</p>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
-            title="Sign Out"
+            title="Sign out"
             className="text-text-muted hover:text-destructive transition-colors p-1"
           >
             <LogOut className="w-4 h-4" />
@@ -159,37 +162,37 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* Main Content Component Workspace Render Frame */}
       <main className="flex-1 ml-[220px] p-6 md:p-12 min-h-screen">
         <div className="max-w-5xl mx-auto space-y-8">
-          
           {activeTab === "tasks" ? (
             <>
               <header className="flex items-center justify-between gap-4 border-b border-border pb-6">
                 <div>
-                  <h1 className="text-2xl font-semibold tracking-tight">{companyName} Command Center</h1>
-                  <p className="text-xs text-text-muted font-mono mt-0.5">Database Cluster Telemetry Live</p>
+                  <h1 className="text-2xl font-semibold tracking-tight">{displayCompany}</h1>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    {tasks.length} active position{tasks.length !== 1 ? "s" : ""}
+                  </p>
                 </div>
-                
+
                 <Link href="/tasks/new">
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     className="h-11 px-5 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                   >
-                    <Plus className="w-4 h-4" /> Create Hiring Task
+                    <Plus className="w-4 h-4" /> New Task
                   </motion.button>
                 </Link>
               </header>
 
               <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { label: "Active Roles", value: isLoading ? "..." : tasks.length, icon: Briefcase },
-                  { label: "Total Candidates", value: isLoading ? "..." : tasks.reduce((acc, t) => acc + (t.candidates?.length || 0), 0), icon: Users },
-                  { label: "Assessments Finished", value: isLoading ? "..." : tasks.reduce((acc, t) => acc + ((t.completionRate ?? 0) > 0 ? 1 : 0), 0), icon: CheckCircle },
+                  { label: "Active Roles", value: tasks.length, icon: Briefcase },
+                  { label: "Total Candidates", value: tasks.reduce((acc, t) => acc + (t.candidates?.length || 0), 0), icon: Users },
+                  { label: "Assessments Finished", value: tasks.reduce((acc, t) => acc + ((t.completionRate ?? 0) > 0 ? 1 : 0), 0), icon: CheckCircle },
                 ].map((stat, i) => (
                   <div key={i} className="bg-surface border border-border rounded-xl p-5 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-mono uppercase tracking-wider text-text-muted">{stat.label}</p>
+                      <p className="text-xs text-text-muted">{stat.label}</p>
                       <p className="text-xl font-medium mt-1">{stat.value}</p>
                     </div>
                     <stat.icon className="w-5 h-5 text-text-muted opacity-50" />
@@ -198,16 +201,14 @@ export default function DashboardPage() {
               </section>
 
               <div className="space-y-4">
-                <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider font-mono px-1">
-                  Active Positions ({tasks.length})
+                <h2 className="text-xs text-text-muted px-1">
+                  Positions
                 </h2>
-                
+
                 <div className="space-y-3">
-                  {isLoading ? (
-                    <div className="h-24 w-full bg-surface border border-border rounded-xl animate-pulse" />
-                  ) : tasks.length === 0 ? (
+                  {tasks.length === 0 ? (
                     <div className="bg-surface border border-border border-dashed text-center p-12 rounded-xl text-sm text-text-muted">
-                      No active hiring tasks found in the database.
+                      No positions yet. Create your first hiring task.
                     </div>
                   ) : (
                     tasks.map((task) => (
@@ -218,14 +219,14 @@ export default function DashboardPage() {
                               <h3 className="font-medium text-base group-hover:text-accent transition-colors capitalize">
                                 {task.title}
                               </h3>
-                              <p className="text-xs text-text-muted mt-1 font-mono capitalize">
-                                {task.location} · {task.workType}
+                              <p className="text-xs text-text-muted mt-1 capitalize">
+                                {task.location} &middot; {task.workType}
                               </p>
                             </div>
-                            
+
                             <div className="flex items-center gap-4">
-                              <span className="text-[10px] font-mono bg-black border border-border px-2.5 py-1 rounded text-text-muted">
-                                ID: {task.id.substring(0, 8)}...
+                              <span className="text-xs bg-black border border-border px-2.5 py-1 rounded text-text-muted">
+                                {task.id.substring(0, 8)}...
                               </span>
                               <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-text-primary transition-colors" />
                             </div>
@@ -247,40 +248,18 @@ export default function DashboardPage() {
           ) : (
             <>
               <header className="border-b border-border pb-6">
-                <h1 className="text-2xl font-semibold tracking-tight">Platform Configuration</h1>
-                <p className="text-xs text-text-muted font-mono mt-0.5">Manage parameters for organization: {companyName}</p>
+                <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+                <p className="text-xs text-text-muted mt-0.5">Manage your workspace settings</p>
               </header>
 
               <form onSubmit={handleSaveSettings} className="bg-surface border border-border rounded-xl p-6 space-y-6 max-w-2xl">
                 <div className="space-y-2">
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Company Name</label>
+                  <label className="block text-xs text-text-muted">Company Name</label>
                   <input
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     required
-                    className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none focus:border-accent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Account Email</label>
-                  <input
-                    type="email"
-                    value={companyEmail}
-                    onChange={(e) => setCompanyEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none focus:border-accent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-xs font-mono uppercase tracking-wider text-text-muted">Custom OpenAI API Key (Optional)</label>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Leave blank to use global workspace allocation rules (sk-...)"
                     className="w-full h-11 bg-black border border-border rounded-lg px-4 text-text-primary text-sm outline-none focus:border-accent"
                   />
                 </div>
@@ -291,13 +270,12 @@ export default function DashboardPage() {
                     className="h-11 px-6 bg-accent hover:bg-accent-hover text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
                   >
                     {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                    {isSaved ? "Configuration Updated" : "Save Changes"}
+                    {isSaved ? "Saved" : "Save Changes"}
                   </button>
                 </div>
               </form>
             </>
           )}
-
         </div>
       </main>
     </div>
