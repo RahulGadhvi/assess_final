@@ -9,19 +9,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "oklch(var(--background) / <alpha-value>)",
-        surface: "oklch(var(--surface) / <alpha-value>)",
-        border: "oklch(var(--border) / <alpha-value>)",
+        background: "rgb(var(--background) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        border: "rgb(var(--border) / <alpha-value>)",
         text: {
-          primary: "oklch(var(--text-primary) / <alpha-value>)",
-          muted: "oklch(var(--text-muted) / <alpha-value>)",
+          primary: "rgb(var(--text-primary) / <alpha-value>)",
+          muted: "rgb(var(--text-muted) / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "oklch(var(--accent) / <alpha-value>)",
-          hover: "oklch(var(--accent-hover) / <alpha-value>)",
+          DEFAULT: "rgb(var(--accent) / <alpha-value>)",
+          hover: "rgb(var(--accent-hover) / <alpha-value>)",
         },
-        destructive: "oklch(var(--destructive) / <alpha-value>)",
-        success: "oklch(var(--success) / <alpha-value>)",
+        destructive: "rgb(var(--destructive) / <alpha-value>)",
+        success: "rgb(var(--success) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],

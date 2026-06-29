@@ -71,7 +71,7 @@ export default function LoginPage() {
         className="w-full max-w-[400px] bg-surface border border-border rounded-xl p-8"
       >
         <div className="mb-6 text-center">
-          <h1 className="font-bold text-3xl text-text-primary mb-1">assess.</h1>
+          <h1 className="font-bold text-3xl text-text-primary mb-1">Assess.</h1>
           <p className="text-text-muted text-sm">
             {isRegistering ? "Create your workspace" : "Sign in to your account"}
           </p>

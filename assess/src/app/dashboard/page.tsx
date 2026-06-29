@@ -111,7 +111,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background flex text-text-primary">
       <aside className="w-[220px] h-screen fixed left-0 top-0 bg-[#0A0A0A] border-r border-border flex flex-col z-20">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <span className="font-bold text-xl tracking-tighter">assess.</span>
+          <span className="font-bold text-xl tracking-tighter">Assess.</span>
         </div>
 
         <nav className="flex-1 py-6 flex flex-col gap-1 px-3">
